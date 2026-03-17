@@ -6,11 +6,10 @@
 #
 Cluster:
   "account"   : ["bsmfc"]
-  "cpus"      : [8]                  
-  "ram"       : ["8GB"]      
+  "cpus"      : [1]                  
+  "ram"       : ["1GB"]      
   "partition" : ["batch"]
-  "time"      : ["00:30:00"]
-
+  "time"      : ["00:00:30"]
 
 # ===== Training Configuration =====
 #
@@ -20,39 +19,9 @@ Training:
     "project": ["BenthicAI-Debug"]
     "mode":    ["disabled"]
 
-  config_problem:
-    "model_checkpoint_name":    [null]
-    "model_checkpoint_version": [null]
-    "model_saving":             [False]
-
-  config_scheduler:
-    "scheduler": ["constant"]
-
-  config_optimizer:
-    "betas":         [[0.9, 0.999, 0.999]]
-    "learning_rate": [0.001]
-    "optimizer":     ["soap"]
-    "weight_decay":  [0.0]
-
-  config_dataloader:
-    "batch_size_per_gpu": [1]                     
-    "num_workers":        [0]                     
-    "prefetch_factor":    [null]                     
-    "shuffle":            [[True, False, False]]  
-
-  config_training:
-    "steps_training":              [32]    
-    "steps_gradient_accumulation": [1]        
-    "steps_logging":               [2]        
-    "steps_validation":            [4]     
-    "sigma_min":                   [0.0001]
-    "sigma_max":                   [10000]
-    "blanket_size":                [1]
-
-  config_nn:
-    "kernel_size":      [[1, 3, 3]]
-    "mod_features":     [32]
-    "ffn_factor":       [1]
-    "hid_blocks":       [[1, 1]]
-    "hid_channels":     [[4, 8]]
-    "attention_heads" : [{"-1": 1}]
+  config_dataset:
+    "r_validation":    [1]
+    "k_validation":    [2]
+    "k_test":          [2]
+    "seed_validation": [1]
+    "seed_test":       [1] 
