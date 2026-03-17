@@ -78,7 +78,6 @@ DATASET_OUTPUT_VARIABLES = [
     "sexuality_homogamy",
     "sexuality_protandry",
     "slow",
-    "station_name",
     "substratum_depth_occupancy_0",
     "substratum_depth_occupancy_0_5",
     "substratum_depth_occupancy_15_30",
