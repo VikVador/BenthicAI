@@ -31,7 +31,7 @@ DATASET_OUTPUT_VARIABLES = [
     "body_mass_0.010_0.100",
     "body_mass_0.100_1.000",
     "body_mass_1.000_10.000",
-    "body_mass_10.000",
+    # "body_mass_10.000", Note: Only one value.
     "de",
     "dep",
     "endo_bioconstruction_depth_0_5",
