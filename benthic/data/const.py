@@ -1,0 +1,92 @@
+r"""Information about our dataset"""
+
+#
+# ----- Preprocessing
+#
+# Replacing land values (NaNs) by it
+LAND_VALUE = 0
+
+# Defining each variable physical domain (it corrects emulation errors)
+VARIABLES_CLIPPING = {
+    "TBD": (0, None),
+}
+
+DATASET_INPUT_VARIABLES = [
+    "bathymetry",
+    "gravel",
+    "mud_sand_ratio",
+    "votemper",
+    "vosaline",
+    "dox",
+    "par",
+    "sCSED",
+    "botfluxPOC",
+    "botstress",
+    "fCSED",
+]
+
+DATASET_OUTPUT_VARIABLES = [
+    "body_mass_0.001",
+    "body_mass_0.001_0.010",
+    "body_mass_0.010_0.100",
+    "body_mass_0.100_1.000",
+    "body_mass_1.000_10.000",
+    "body_mass_10.000",
+    "de",
+    "dep",
+    "endo_bioconstruction_depth_0_5",
+    "endo_bioconstruction_depth_15_30",
+    "endo_bioconstruction_depth_30",
+    "endo_bioconstruction_depth_5_15",
+    "endo_bioconstruction_depth_none_surficial",
+    "endo_bioconstruction_type_blind_ended",
+    "endo_bioconstruction_type_none",
+    "endo_bioconstruction_type_open_ended",
+    "fast",
+    "feeding_type_casc",
+    "feeding_type_de",
+    "feeding_type_hegr",
+    "feeding_type_su",
+    "immobile",
+    "ir",
+    "life_span_1",
+    "life_span_10_20",
+    "life_span_1_3",
+    "life_span_20",
+    "life_span_3_10",
+    "limited",
+    "mi",
+    "mobility_fast",
+    "mobility_immobile",
+    "mobility_limited",
+    "mobility_slow",
+    "mobility_very_fast",
+    "offspring_development_internal",
+    "offspring_development_lecithotrophic",
+    "offspring_development_mixed_lecithotrophic",
+    "offspring_development_mixed_planktotrophic",
+    "offspring_development_planktotrophic",
+    "posegrp1",
+    "posegrp2",
+    "posegrp3",
+    "sediment_mixing_type_diffusion",
+    "sediment_mixing_type_downward_conveying",
+    "sediment_mixing_type_none",
+    "sediment_mixing_type_regeneration",
+    "sediment_mixing_type_upward_conveying",
+    "sexuality_gonochorism",
+    "sexuality_homogamy",
+    "sexuality_protandry",
+    "slow",
+    "station_name",
+    "substratum_depth_occupancy_0",
+    "substratum_depth_occupancy_0_5",
+    "substratum_depth_occupancy_15_30",
+    "substratum_depth_occupancy_30",
+    "substratum_depth_occupancy_5_15",
+    "t17.m6",
+    "ventilation_pumping_high",
+    "ventilation_pumping_low",
+    "ventilation_pumping_null",
+    "very_fast",
+]
