@@ -17,11 +17,22 @@ Training:
 
   config_wandb:
     "project": ["BenthicAI-Debug"]
-    "mode":    ["disabled"]
+    "mode":    ["online"]
 
   config_dataset:
-    "r_validation":    [1]
+    "r_validation":    [2]
     "k_validation":    [2]
-    "k_test":          [2]
+    "k_test":          [10]
     "seed_validation": [1]
     "seed_test":       [1] 
+
+  config_model:
+    "model_type": ["gp"]
+
+  config_gp:
+    "kernel": ["RBF", "Matern52"]
+    "alpha":  [1e-10]
+
+  config_nn:
+    "layers": [[64, 64]]
+    "activation": ["relu"]
