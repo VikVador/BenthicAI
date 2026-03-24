@@ -2,35 +2,32 @@
 #         B E N T H I C   A I
 # ====================================
 #
-# ===== Cluster =====
-#
 Cluster:
   "account"   : ["bsmfc"]
   "cpus"      : [1]                  
   "ram"       : ["1GB"]      
   "partition" : ["batch"]
-  "time"      : ["00:00:30"]
+  "time"      : ["00:02:30"]
 
-# ===== Training Configuration =====
-#
 Training:
 
   config_wandb:
-    "project": ["BenthicAI-Debug"]
+    "team":    ["benthicAI"]
+    "project": ["Tranining-Debug"]
     "mode":    ["online"]
 
   config_dataset:
     "r_validation":    [2]
-    "k_validation":    [2]
-    "k_test":          [10]
+    "k_validation":    [4]
+    "k_test":          [8]
     "seed_validation": [1]
     "seed_test":       [1] 
 
   config_model:
-    "model_type": ["gp"]
+    "model_type": ["nn"]
 
   config_gp:
-    "kernel": ["RBF", "Matern52"]
+    "kernel": ["RBF"]
     "alpha":  [1e-10]
 
   config_nn:
