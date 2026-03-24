@@ -26,21 +26,21 @@ Training:
     "mode":    ["online"]
 
   config_dataset:
-    "r_validation":    [2]
-    "k_validation":    [4]
-    "k_test":          [8]
+    "r_validation":    [1]
+    "k_validation":    [2]
+    "k_test":          [4]
     "seed_validation": [1]
     "seed_test":       [1] 
 
   config_model:
-    "model_type": ["nn"]
+    "model_type": ["gp", "nn"] # Choose one of "gp" or "nn"
 
   config_gp:
-    "kernel": ["RBF"]
-    "alpha":  [1e-10]
+    "kernel": ["ConstantKernel(1.0) * RBF(length_scale=1.0) + WhiteKernel()"]
+    "alpha":  [1e-4]
 
   config_nn:
-    "epochs":        [1000]
-    "learning_rate": [0.001]
-    "layers":        [[8, 8]]
+    "epochs":        [100]
+    "learning_rate": [1e-3]
+    "layers":        [[4, 4]]
     "dropout":       [0.1]
