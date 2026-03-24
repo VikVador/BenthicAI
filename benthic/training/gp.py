@@ -1,20 +1,19 @@
 r"""A collection of tools to train a Gaussian Process."""
 
 import numpy as np
-
 import wandb
-
-
-import os
 
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import (
-    RBF, Matern, WhiteKernel, ConstantKernel,
-    RationalQuadratic, ExpSineSquared, DotProduct
+    RBF,
+    ConstantKernel,
+    DotProduct,
+    ExpSineSquared,
+    Matern,
+    RationalQuadratic,
+    WhiteKernel,
 )
 from sklearn.metrics import r2_score
-
-
 
 
 def kernel_from_string(expr: str):
@@ -32,8 +31,10 @@ def kernel_from_string(expr: str):
 
 
 def nlpd_per_output(y_true, y_pred, y_std):
-    y_std = y_std[:, np.newaxis]   # (n_test, 1) for correct broadcasting
-    pointwise_nlpd = 0.5*np.log(2*np.pi*y_std**2) + 0.5*((y_true - y_pred)**2) / (y_std**2)
+    y_std = y_std[:, np.newaxis]  # (n_test, 1) for correct broadcasting
+    pointwise_nlpd = 0.5 * np.log(2 * np.pi * y_std**2) + 0.5 * ((y_true - y_pred) ** 2) / (
+        y_std**2
+    )
     return np.mean(pointwise_nlpd, axis=0)  # (n_outputs,)
 
 
@@ -75,7 +76,6 @@ def training_gp(
     for key, value in config.items():
         print(f"  {key}: {value}")
 
-
     fold_kernel = kernel_from_string(config["config_gp"]["kernel"])
     fold_gpr = GaussianProcessRegressor(
         kernel=fold_kernel,
@@ -114,6 +114,7 @@ def training_gp(
 
     # W&B logging: global + per-output metrics
     if config.get("use_wandb", True) and wandb.run is not None:
+
         def _sanitize_metric_name(name: str) -> str:
             return (
                 str(name)
@@ -151,4 +152,3 @@ def training_gp(
             metrics[f"per_output/val/r2/{n}"] = float(r2_per_output_va[i])
 
         wandb.log(metrics)
-

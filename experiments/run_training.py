@@ -4,16 +4,15 @@ import argparse
 import wandb
 
 from benthic.training import training
-from dawgz import job, schedule
+from dawgz import after, job, schedule
 
+# fmt: off
+#
 # isort: split
 from benthic.config import FOLDER_MODEL_GP, FOLDER_MODEL_NN
 from benthic.training.tools import load_configuration
 
-# fmt: off
-#
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="Launch a training pipeline.")
     parser.add_argument(
         "--config",
@@ -23,19 +22,23 @@ if __name__ == "__main__":
         help="Path to the training .yml configuration file.",
     )
 
-    args           = parser.parse_args()
-    configs        = load_configuration(args.config)
-    config_cluster = configs[0].get("Cluster").copy()
+    args = parser.parse_args()
+    configs = load_configuration(args.config)
+    config_cluster_train = configs[0]["Cluster"]["Train"].copy()
+    config_cluster_evaluate = configs[0]["Cluster"]["Evaluate"].copy()
 
-    # Looping over all models to be trained
     for cfg in configs:
 
-        # Extracting training configuration
+        # Extracting the training configuration
         cfg = cfg["Training"]
 
         # Creating model name
-        model_name   = wandb.util.generate_id()
-        model_folder = FOLDER_MODEL_NN / f"{model_name}" if cfg["config_model"] == "nn" else FOLDER_MODEL_GP / f"{model_name}"
+        model_name = wandb.util.generate_id()
+        model_folder = (
+            FOLDER_MODEL_NN / f"{model_name}"
+            if cfg["config_model"] == "nn"
+            else FOLDER_MODEL_GP / f"{model_name}"
+        )
         if not model_folder.exists():
             model_folder.mkdir(parents=True)
 
@@ -43,13 +46,23 @@ if __name__ == "__main__":
         num_models = cfg["config_dataset"]["r_validation"] * cfg["config_dataset"]["k_validation"]
 
         # Launching parallel training
-        @job(array=num_models, **config_cluster)
-        def train(i: int, model_name=model_name, cfg=cfg):
-            training(model_name = model_name, fold_idx = i, config = cfg)
+        @job(array=num_models, **config_cluster_train)
+        def train(i: int, model_name=model_name, model_folder=model_folder, config=cfg):
+            training(
+                fold_idx=i,
+                model_name=model_name,
+                model_folder=model_folder,
+                config=config,
+            )
+
+        @after(train)
+        @job(array= num_models, **config_cluster_evaluate)
+        def evaluate(i: int, model_name=model_name, model_folder=model_folder, config=cfg):
+            pass
 
         # Launching the training jobs
         schedule(
-            train,
+            [train, evaluate],
             name="BENTHIC-TRAINING",
             backend="slurm",
             export="ALL",
