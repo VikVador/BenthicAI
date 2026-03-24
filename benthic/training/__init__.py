@@ -6,13 +6,14 @@ import xarray as xr
 from benthic.config import PATH_DATASET_TRAIN_VAL
 from benthic.data.const import DATASET_INPUT_VARIABLES, DATASET_OUTPUT_VARIABLES
 from benthic.data.dataset import get_datasets
-from benthic.data.tools import Statistics, from_zarr_to_numpy
+from benthic.data.tools import from_zarr_to_numpy
 from benthic.training.gp import training_gp
 from benthic.training.nn import training_nn
+from benthic.training.tools import prepare_wandb_config
 
 
 def training(fold_idx: int, model_name: str, model_folder: str, config: dict):
-    r"""Execute the training of a model.
+    r"""Launch the training of a model.
 
     Arguments:
         fold_idx: Index of the fold for k-fold cross-validation (inner loop).
@@ -27,7 +28,7 @@ def training(fold_idx: int, model_name: str, model_folder: str, config: dict):
         entity=config["config_wandb"]["team"],
         group=model_name,
         name=f"{model_name}",
-        config=config,
+        config=prepare_wandb_config(config),
     )
 
     # ===================
@@ -42,17 +43,8 @@ def training(fold_idx: int, model_name: str, model_folder: str, config: dict):
         from_zarr_to_numpy(ds, DATASET_OUTPUT_VARIABLES),
     )
 
-    # Standardizing data
-    stats_X, stats_y = Statistics(), Statistics()
-    stats_X.fit(X), stats_y.fit(y)
-    X_standardized, y_standardized = stats_X.standardize(X), stats_y.standardize(y)
-
-    # Create nested k-fold splits using standardized data
-    X_train, y_train, X_val, y_val, _, _ = get_datasets(
-        X_standardized,
-        y_standardized,
-        **config["config_dataset"],
-    )
+    # Create nested k-fold splits
+    X_train, y_train, X_val, y_val, _, _ = get_datasets(X, y, **config["config_dataset"])
 
     # Extracting the current fold for training and validation
     X_train, y_train, X_val, y_val = (
@@ -71,7 +63,6 @@ def training(fold_idx: int, model_name: str, model_folder: str, config: dict):
             y_train=y_train,
             X_val=X_val,
             y_val=y_val,
-            model_name=model_name,
             model_folder=model_folder,
             fold_idx=fold_idx,
             config=config,
@@ -83,8 +74,8 @@ def training(fold_idx: int, model_name: str, model_folder: str, config: dict):
             y_train=y_train,
             X_val=X_val,
             y_val=y_val,
-            model_name=model_name,
             model_folder=model_folder,
+            fold_idx=fold_idx,
             config=config,
         )
 
