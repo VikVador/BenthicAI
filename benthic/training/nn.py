@@ -206,8 +206,14 @@ def training_nn(
     with torch.no_grad():
         y_mean_val, y_var_val = model(X_val)
 
+    # Saving results and validation set (standardized)
+    np.save(model_folder / f"{fold_idx}_standardized_y_true.npy",      np.array(y_val))
+    np.save(model_folder / f"{fold_idx}_standardized_y_pred_mean.npy", np.array(y_mean_val))
+    np.save(model_folder / f"{fold_idx}_standardized_y_pred_var.npy",  np.array(y_var_val))
+
     # Unscaling the data
-    y_mean_val, y_var_val = (
+    y_val, y_mean_val, y_var_val = (
+        stats_y.unstandardize(y_val.numpy()),
         stats_y.unstandardize(y_mean_val.numpy()),
         stats_y.unstandardize(np.sqrt(y_var_val.numpy())) ** 2,
     )

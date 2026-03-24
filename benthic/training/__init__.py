@@ -1,4 +1,4 @@
-r"""A collection of tools to train a model."""
+r"""A tool for training models."""
 
 import wandb
 import xarray as xr

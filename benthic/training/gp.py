@@ -69,9 +69,6 @@ def training_gp(
         stats_y.standardize(y_val),
     )
 
-    # ===================
-    #      TRAINING
-    # ===================
     # Initializing the Gaussian Process Regressor
     fold_kernel = kernel_from_string(config["config_gp"]["kernel"])
     fold_gpr = GaussianProcessRegressor(
@@ -89,13 +86,19 @@ def training_gp(
     # Logging the final validation loss for the fold
     wandb.log({"Training & Validation / Final Validation Loss (GP)": y_mean_val.mean()})
 
+    # Saving results and validation set (standardized)
+    np.save(model_folder / f"{fold_idx}_standardized_y_true.npy",      y_val)
+    np.save(model_folder / f"{fold_idx}_standardized_y_pred_mean.npy", y_mean_val)
+    np.save(model_folder / f"{fold_idx}_standardized_y_pred_var.npy",  y_std_val ** 2)
+
     # Unscaling the data
-    y_mean_val, y_std_val = (
+    y_val, y_mean_val, y_std_val = (
+        stats_y.unstandardize(y_val),
         stats_y.unstandardize(y_mean_val),
         stats_y.unstandardize(y_std_val),
     )
 
     # Saving results and validation set
-    np.save(model_folder / f"{fold_idx}_y_true.npy", y_val)
+    np.save(model_folder / f"{fold_idx}_y_true.npy",      y_val)
     np.save(model_folder / f"{fold_idx}_y_pred_mean.npy", y_mean_val)
-    np.save(model_folder / f"{fold_idx}_y_pred_var.npy", y_std_val)
+    np.save(model_folder / f"{fold_idx}_y_pred_var.npy",  y_std_val ** 2)

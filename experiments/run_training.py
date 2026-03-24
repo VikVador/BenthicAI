@@ -3,6 +3,7 @@ r"""Script to launch a training pipeline."""
 import argparse
 import wandb
 
+from benthic.diagnostics import diagnostics
 from benthic.training import training
 from dawgz import after, job, schedule
 
@@ -57,12 +58,15 @@ if __name__ == "__main__":
 
         @after(train)
         @job(array= num_models, **config_cluster_evaluate)
-        def evaluate(i: int, model_name=model_name, model_folder=model_folder, config=cfg):
-            pass
+        def diagnose(i: int, model_folder=model_folder):
+            diagnostics(
+                fold_idx=i,
+                model_folder=model_folder,
+            )
 
         # Launching the training jobs
         schedule(
-            *[train, evaluate],
+            *[train, diagnose],
             name="BENTHIC-TRAINING",
             backend="slurm",
             export="ALL",
