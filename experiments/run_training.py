@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
         # Launching the training jobs
         schedule(
-            [train, evaluate],
+            *[train, evaluate],
             name="BENTHIC-TRAINING",
             backend="slurm",
             export="ALL",
