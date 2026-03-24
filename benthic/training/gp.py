@@ -3,6 +3,7 @@ r"""A collection of tools to train a Gaussian Process."""
 import numpy as np
 import wandb
 
+from pathlib import Path
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import (
     RBF,
@@ -53,6 +54,7 @@ def training_gp(
     model_name: str,
     model_folder: str,
     config: dict,
+    fold_idx: int,
 ):
     r"""Train a Gaussian Process.
 
@@ -87,6 +89,18 @@ def training_gp(
     # Predictions on train and validation
     y_pred_tr, y_std_tr = fold_gpr.predict(X_train, return_std=True)
     y_pred_va, y_std_va = fold_gpr.predict(X_val, return_std=True)
+
+    # Saving validation predictions and true values
+    model_folder_path = Path(model_folder)
+    model_folder_path.mkdir(parents=True, exist_ok=True)
+    pred_path = model_folder_path / f"gp_fold_{fold_idx:03d}_predictions.npz"
+    np.savez(
+        pred_path,
+        y_val=y_val,
+        y_pred_va=y_pred_va,
+        y_std_va=y_std_va,
+    )
+    print(f"|- Saved validation predictions to: {pred_path}")
 
     # Per-output metrics (train)
     rmse_per_output_tr = np.sqrt(np.mean((y_train - y_pred_tr) ** 2, axis=0))
