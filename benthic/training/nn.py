@@ -5,7 +5,10 @@ import torch
 import torch.nn as nn
 import wandb
 
+from benthic.data.tools import Statistics
 
+
+# fmt: off
 class FullyConnectedNeuralNetwork(nn.Module):
     r"""Fully connected neural network with Gaussian output (mean and variance).
 
@@ -58,7 +61,6 @@ class FullyConnectedNeuralNetwork(nn.Module):
             mean: Predicted mean of shape (batch_size, output_size).
             variance: Predicted variance of shape (batch_size, output_size).
         """
-        # Pass through hidden layers
         h = self.hidden(x)
 
         # Predict mean directly
@@ -101,7 +103,6 @@ def training_nn(
     y_train: np.ndarray,
     X_val: np.ndarray,
     y_val: np.ndarray,
-    model_name: str,
     model_folder: str,
     fold_idx: int,
     config: dict,
@@ -118,15 +119,15 @@ def training_nn(
         config: Training configuration dictionary.
     """
 
-    # Displaying information over terminal (1)
-    print(f"Training model: {model_name}")
-    print(f"|- Model folder: {model_folder}")
-    print(f"|- Model type: {config['config_model']['model_type']}")
-    print(f"|- Training dataset shape: X_train={X_train.shape}, y_train={y_train.shape}")
-    print(f"|- Validation dataset shape: X_val={X_val.shape}, y_val={y_val.shape}")
-    print("|- Configuration:")
-    for key, value in config.items():
-        print(f"  {key}: {value}")
+    # Standardizing data (using training set statistics to leak no information from validation set)
+    stats_X, stats_y = Statistics(), Statistics()
+    stats_X.fit(X_train), stats_y.fit(y_train)
+    X_train, y_train, X_val, y_val = (
+        stats_X.standardize(X_train),
+        stats_y.standardize(y_train),
+        stats_X.standardize(X_val),
+        stats_y.standardize(y_val),
+    )
 
     # Converting numpy arrays to PyTorch tensors
     X_train, y_train, X_val, y_val = (
@@ -153,6 +154,7 @@ def training_nn(
     val_losses = []
 
     for epoch in range(config["config_nn"]["epochs"]):
+        #
         # ===================
         #      TRAINING
         # ===================
@@ -189,19 +191,28 @@ def training_nn(
         # Logging to Weights & Biases
         wandb.log({
             "Training & Validation / Epoch": epoch + 1,
-            "Training & Validation / Training Loss (NLL)": train_loss.item(),
-            "Training & Validation / Validation Loss (NLL)": val_loss.item(),
+            "Training & Validation / Loss (Training)": train_loss.item(),
+            "Training & Validation / Loss (Validation)": val_loss.item(),
         })
 
+    # Logging the best validation loss for the fold
+    wandb.log({"Training & Validation / Best Loss (Validation)": best_val_loss})
+
     # Loading the best model for final evaluation
-    model.load_state_dict(torch.load(model_folder / "best_model.pth"))
+    model.load_state_dict(torch.load(model_folder / "best_model.pth", weights_only=True))
     model.eval()
 
     # Predictions on validation set for final evaluation
     with torch.no_grad():
         y_mean_val, y_var_val = model(X_val)
 
+    # Unscaling the data
+    y_mean_val, y_var_val = (
+        stats_y.unstandardize(y_mean_val.numpy()),
+        stats_y.unstandardize(np.sqrt(y_var_val.numpy())) ** 2,
+    )
+
     # Saving results and validation set
-    torch.save(y_val, model_folder / f"f{fold_idx}_y_true.pt")
+    torch.save(y_val,      model_folder / f"f{fold_idx}_y_true.pt")
     torch.save(y_mean_val, model_folder / f"f{fold_idx}_y_pred_mean.pt")
-    torch.save(y_var_val, model_folder / f"f{fold_idx}_y_pred_var.pt")
+    torch.save(y_var_val,  model_folder / f"f{fold_idx}_y_pred_var.pt")
