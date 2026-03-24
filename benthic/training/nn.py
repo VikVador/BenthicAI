@@ -114,8 +114,8 @@ def training_nn(
         y_train: Output data for training.
         X_val: Input data for validation.
         y_val: Output data for validation.
-        model_name: Name of the model to be trained, used for logging and saving.
         model_folder: Path to the folder where the model will be saved.
+        fold_idx: Index of the fold for k-fold cross-validation (inner loop).
         config: Training configuration dictionary.
     """
 
