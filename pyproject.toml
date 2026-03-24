@@ -23,7 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 all = [
-  "dawgz==2.2.0",
+  "dawgz==1.0.4",
   "jupyterlab==4.2.2",
   "ipykernel==6.29.5",
   "matplotlib==3.9.0",
