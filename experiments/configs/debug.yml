@@ -3,17 +3,26 @@
 # ====================================
 #
 Cluster:
-  "account"   : ["bsmfc"]
-  "cpus"      : [1]                  
-  "ram"       : ["1GB"]      
-  "partition" : ["batch"]
-  "time"      : ["00:02:30"]
+
+  Train:
+    "account"   : ["bsmfc"]
+    "cpus"      : [1]                  
+    "ram"       : ["1GB"]      
+    "partition" : ["batch"]
+    "time"      : ["00:02:30"]
+
+  Evaluate:
+    "account"   : ["bsmfc"]
+    "cpus"      : [1]                  
+    "ram"       : ["1GB"]      
+    "partition" : ["batch"]
+    "time"      : ["00:05:00"]
 
 Training:
 
   config_wandb:
     "team":    ["benthicAI"]
-    "project": ["Tranining-Debug"]
+    "project": ["Training-Debug"]
     "mode":    ["online"]
 
   config_dataset:
@@ -31,5 +40,7 @@ Training:
     "alpha":  [1e-10]
 
   config_nn:
-    "layers": [[64, 64]]
-    "activation": ["relu"]
+    "epochs":        [1000]
+    "learning_rate": [0.001]
+    "layers":        [[8, 8]]
+    "dropout":       [0.1]
