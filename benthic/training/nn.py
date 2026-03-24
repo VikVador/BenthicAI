@@ -196,7 +196,7 @@ def training_nn(
         })
 
     # Logging the best validation loss for the fold
-    wandb.log({"Training & Validation / Best Loss (Validation)": best_val_loss})
+    wandb.log({"Training & Validation / Final Validation Loss (NN)": best_val_loss})
 
     # Loading the best model for final evaluation
     model.load_state_dict(torch.load(model_folder / "best_model.pth", weights_only=True))
@@ -213,6 +213,6 @@ def training_nn(
     )
 
     # Saving results and validation set
-    torch.save(y_val,      model_folder / f"f{fold_idx}_y_true.pt")
-    torch.save(y_mean_val, model_folder / f"f{fold_idx}_y_pred_mean.pt")
-    torch.save(y_var_val,  model_folder / f"f{fold_idx}_y_pred_var.pt")
+    np.save(model_folder / f"{fold_idx}_y_true.npy",      np.array(y_val))
+    np.save(model_folder / f"{fold_idx}_y_pred_mean.npy", np.array(y_mean_val))
+    np.save(model_folder / f"{fold_idx}_y_pred_var.npy",  np.array(y_var_val))

@@ -16,11 +16,9 @@ def compute_diagnostics(idx, model_name, config):
 
     elif config["config_model"]["model_type"] == "gp":
         model_folder = FOLDER_MODEL_GP / f"{model_name}"
-        pred_file = f"gp_fold_{idx:03d}_predictions.npz"
-
-        predictions = np.load(model_folder / pred_file)
-        y_pred = np.asarray(predictions["y_pred_va"])
-        y_true = np.asarray(predictions["y_val"])
+        y_pred = np.load(model_folder / f"{idx}_y_pred.npy")
+        y_true = np.load(model_folder / f"{idx}_y_true.npy")
+        y_var = np.load(model_folder / f"{idx}_y_var.npy")
 
     bias_array = bias(y_true, y_pred)
     r2_array = r2_score(y_true, y_pred)
@@ -29,3 +27,4 @@ def compute_diagnostics(idx, model_name, config):
     np.save(model_folder / f"bias_{idx}.npy", bias_array)
     np.save(model_folder / f"r2_{idx}.npy", r2_array)
     np.save(model_folder / f"rmse_{idx}.npy", rmse_array)
+    np.save(model_folder / f"y_var_{idx}.npy", y_var)

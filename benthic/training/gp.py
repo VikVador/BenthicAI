@@ -1,6 +1,7 @@
 r"""A collection of tools to train a Gaussian Process."""
 
 import numpy as np
+import wandb
 
 from benthic.data.tools import Statistics
 from sklearn.gaussian_process import GaussianProcessRegressor
@@ -15,7 +16,14 @@ from sklearn.gaussian_process.kernels import (
 )
 
 
-def kernel_from_string(expr: str):
+# fmt: off
+def kernel_from_string(expr: str) -> object:
+    r"""Parse a kernel expression from a string.
+
+    Arguments:
+        expr: A string expression representing the kernel, e.g., "ConstantKernel(1.0)"
+    """
+
     allowed = {
         "RBF": RBF,
         "Matern": Matern,
@@ -25,16 +33,9 @@ def kernel_from_string(expr: str):
         "ExpSineSquared": ExpSineSquared,
         "DotProduct": DotProduct,
     }
+
     # Only use this for trusted config files
     return eval(expr, {"__builtins__": {}}, allowed)
-
-
-def nlpd_per_output(y_true, y_pred, y_std):
-    y_std = y_std[:, np.newaxis]  # (n_test, 1) for correct broadcasting
-    pointwise_nlpd = 0.5 * np.log(2 * np.pi * y_std**2) + 0.5 * ((y_true - y_pred) ** 2) / (
-        y_std**2
-    )
-    return np.mean(pointwise_nlpd, axis=0)  # (n_outputs,)
 
 
 def training_gp(
@@ -46,7 +47,7 @@ def training_gp(
     fold_idx: int,
     config: dict,
 ):
-    r"""Train a Gaussian Process.
+    """Train a Gaussian Process.
 
     Arguments:
         X_train: Input data for training.
@@ -57,6 +58,7 @@ def training_gp(
         fold_idx: Index of the fold for k-fold cross-validation (inner loop).
         config: Training configuration dictionary.
     """
+
     # Standardizing data (using training set statistics to leak no information from validation set)
     stats_X, stats_y = Statistics(), Statistics()
     stats_X.fit(X_train), stats_y.fit(y_train)
@@ -67,7 +69,10 @@ def training_gp(
         stats_y.standardize(y_val),
     )
 
-    # Initializing of Gaussian Process Regressor
+    # ===================
+    #      TRAINING
+    # ===================
+    # Initializing the Gaussian Process Regressor
     fold_kernel = kernel_from_string(config["config_gp"]["kernel"])
     fold_gpr = GaussianProcessRegressor(
         kernel=fold_kernel,
@@ -79,14 +84,18 @@ def training_gp(
     fold_gpr.fit(X_train, y_train)
 
     # Predictions on train and validation
-    y_pred_tr, y_std_tr = fold_gpr.predict(X_train, return_std=True)
-    y_pred_va, y_std_va = fold_gpr.predict(X_val, return_std=True)
+    y_mean_val, y_std_val = fold_gpr.predict(X_val, return_std=True)
+
+    # Logging the final validation loss for the fold
+    wandb.log({"Training & Validation / Final Validation Loss (GP)": y_mean_val.mean()})
+
+    # Unscaling the data
+    y_mean_val, y_std_val = (
+        stats_y.unstandardize(y_mean_val),
+        stats_y.unstandardize(y_std_val),
+    )
 
     # Saving results and validation set
-    pred_path = model_folder / f"gp_fold_{fold_idx:03d}_predictions.npz"
-    np.savez(
-        pred_path,
-        y_val=y_val,
-        y_pred_va=y_pred_va,
-        y_std_va=y_std_va,
-    )
+    np.save(model_folder / f"{fold_idx}_y_true.npy", y_val)
+    np.save(model_folder / f"{fold_idx}_y_pred_mean.npy", y_mean_val)
+    np.save(model_folder / f"{fold_idx}_y_pred_var.npy", y_std_val)
