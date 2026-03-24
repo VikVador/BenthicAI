@@ -34,9 +34,6 @@ PATH_DATA = {
     "labels"        : FOLDER_DATASET_RAW / "labels.csv",
 }
 
-# Path to statistics of predictors
-PATH_STATS = FOLDER_DATASET_STATISTICS / "statistics.zarr"
-
 # --- Models ---
 #
 # Path to models trained on the benthic data

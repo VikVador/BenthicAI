@@ -27,6 +27,7 @@ def training(model_name: str, fold_idx: int, config: dict):
     wandb.init(
         mode=config["config_wandb"]["mode"],
         project=config["config_wandb"]["project"],
+        entity=config["config_wandb"]["team"],
         group=model_name,
         name=f"{model_name}",
         config=config,
