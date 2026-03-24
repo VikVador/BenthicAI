@@ -1,6 +1,4 @@
-import matplotlib.pyplot as plt
 import numpy as np
-
 
 
 def bias(y_true, y_pred):
@@ -15,7 +13,4 @@ def r2_score(y_true, y_pred):
 
 
 def rmse(y_true, y_pred):
-    return np.sqrt((y_true - y_pred)**2)
-
-
-
+    return np.sqrt((y_true - y_pred) ** 2)

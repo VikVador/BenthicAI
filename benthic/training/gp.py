@@ -1,21 +1,20 @@
 r"""A collection of tools to train a Gaussian Process."""
 
 import numpy as np
-
 import wandb
 
-
-import os
 from pathlib import Path
-
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import (
-    RBF, Matern, WhiteKernel, ConstantKernel,
-    RationalQuadratic, ExpSineSquared, DotProduct
+    RBF,
+    ConstantKernel,
+    DotProduct,
+    ExpSineSquared,
+    Matern,
+    RationalQuadratic,
+    WhiteKernel,
 )
 from sklearn.metrics import r2_score
-
-
 
 
 def kernel_from_string(expr: str):
@@ -33,8 +32,10 @@ def kernel_from_string(expr: str):
 
 
 def nlpd_per_output(y_true, y_pred, y_std):
-    y_std = y_std[:, np.newaxis]   # (n_test, 1) for correct broadcasting
-    pointwise_nlpd = 0.5*np.log(2*np.pi*y_std**2) + 0.5*((y_true - y_pred)**2) / (y_std**2)
+    y_std = y_std[:, np.newaxis]  # (n_test, 1) for correct broadcasting
+    pointwise_nlpd = 0.5 * np.log(2 * np.pi * y_std**2) + 0.5 * ((y_true - y_pred) ** 2) / (
+        y_std**2
+    )
     return np.mean(pointwise_nlpd, axis=0)  # (n_outputs,)
 
 
@@ -55,7 +56,7 @@ def training_gp(
     config: dict,
     fold_idx: int,
 ):
-    r"""Train a Gaussian Process.
+    """Train a Gaussian Process.
 
     Arguments:
         X_train: Input data for training.
@@ -77,7 +78,6 @@ def training_gp(
     for key, value in config.items():
         print(f"  {key}: {value}")
 
-
     fold_kernel = kernel_from_string(config["config_gp"]["kernel"])
     fold_gpr = GaussianProcessRegressor(
         kernel=fold_kernel,
@@ -90,17 +90,33 @@ def training_gp(
     y_pred_tr, y_std_tr = fold_gpr.predict(X_train, return_std=True)
     y_pred_va, y_std_va = fold_gpr.predict(X_val, return_std=True)
 
-    # Saving validation predictions and true values
+    # Saving validation predictions and true values (sample x predictor)
     model_folder_path = Path(model_folder)
     model_folder_path.mkdir(parents=True, exist_ok=True)
-    pred_path = model_folder_path / f"gp_fold_{fold_idx:03d}_predictions.npz"
-    np.savez(
-        pred_path,
-        y_val=y_val,
-        y_pred_va=y_pred_va,
-        y_std_va=y_std_va,
-    )
-    print(f"|- Saved validation predictions to: {pred_path}")
+    code = str(fold_idx)
+
+    y_true_to_save = np.asarray(y_val)
+    y_pred_to_save = np.asarray(y_pred_va)
+    y_var_to_save = np.asarray(y_std_va) ** 2
+
+    if y_true_to_save.ndim == 1:
+        y_true_to_save = y_true_to_save[:, np.newaxis]
+    if y_pred_to_save.ndim == 1:
+        y_pred_to_save = y_pred_to_save[:, np.newaxis]
+    if y_var_to_save.ndim == 1:
+        y_var_to_save = y_var_to_save[:, np.newaxis]
+
+    y_true_path = model_folder_path / f"{code}_y_true.npy"
+    y_pred_path = model_folder_path / f"{code}_y_pred.npy"
+    y_var_path = model_folder_path / f"{code}_y_var.npy"
+
+    np.save(y_true_path, y_true_to_save)
+    np.save(y_pred_path, y_pred_to_save)
+    np.save(y_var_path, y_var_to_save)
+
+    print(f"|- Saved validation targets to: {y_true_path}")
+    print(f"|- Saved validation predictions to: {y_pred_path}")
+    print(f"|- Saved validation variance to: {y_var_path}")
 
     # Per-output metrics (train)
     rmse_per_output_tr = np.sqrt(np.mean((y_train - y_pred_tr) ** 2, axis=0))
@@ -128,6 +144,7 @@ def training_gp(
 
     # W&B logging: global + per-output metrics
     if config.get("use_wandb", True) and wandb.run is not None:
+
         def _sanitize_metric_name(name: str) -> str:
             return (
                 str(name)
@@ -165,4 +182,3 @@ def training_gp(
             metrics[f"per_output/val/r2/{n}"] = float(r2_per_output_va[i])
 
         wandb.log(metrics)
-
