@@ -90,7 +90,7 @@ def from_zarr_to_numpy(
             stats_array = extract_temporal_statistics(da, stats)
             features_list.append(stats_array)
         else:
-            static_array = da.values.reshape(-1, 1)  # (n_stations, 1)
+            static_array = da.values.reshape(-1, 1)
             features_list.append(static_array)
 
     # Concatenate all features horizontally

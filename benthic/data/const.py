@@ -1,16 +1,5 @@
 r"""Information about our dataset"""
 
-#
-# ----- Preprocessing
-#
-# Replacing land values (NaNs) by it
-LAND_VALUE = 0
-
-# Defining each variable physical domain (it corrects emulation errors)
-VARIABLES_CLIPPING = {
-    "TBD": (0, None),
-}
-
 DATASET_INPUT_VARIABLES = [
     "bathymetry",
     "gravel",
