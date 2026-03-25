@@ -186,7 +186,7 @@ def training_nn(
         # Check for improvement and save model if it's the best so far
         if val_loss.item() < best_val_loss:
             best_val_loss = val_loss.item()
-            torch.save(model.state_dict(), model_folder / "best_model.pth")
+            torch.save(model.state_dict(), model_folder / f"best_model_{fold_idx}.pth")
 
         # Logging to Weights & Biases
         wandb.log({
@@ -199,7 +199,7 @@ def training_nn(
     wandb.log({"Training & Validation / Final Validation Loss (NN)": best_val_loss})
 
     # Loading the best model for final evaluation
-    model.load_state_dict(torch.load(model_folder / "best_model.pth", weights_only=True))
+    model.load_state_dict(torch.load(model_folder / f"best_model_{fold_idx}.pth", weights_only=True))
     model.eval()
 
     # Predictions on validation set for final evaluation
