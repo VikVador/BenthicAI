@@ -189,11 +189,12 @@ def training_nn(
             torch.save(model.state_dict(), model_folder / f"best_model_{fold_idx}.pth")
 
         # Logging to Weights & Biases
-        wandb.log({
-            "Training & Validation / Epoch": epoch + 1,
-            "Training & Validation / Loss (Training)": train_loss.item(),
-            "Training & Validation / Loss (Validation)": val_loss.item(),
-        })
+        if epoch % 500 == 0:
+            wandb.log({
+                "Training & Validation / Epoch": epoch + 1,
+                "Training & Validation / Loss (Training)": train_loss.item(),
+                "Training & Validation / Loss (Validation)": val_loss.item(),
+            })
 
     # Logging the best validation loss for the fold
     wandb.log({"Training & Validation / Final Validation Loss (NN)": best_val_loss})

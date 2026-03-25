@@ -37,7 +37,7 @@ if __name__ == "__main__":
         model_name = wandb.util.generate_id()
         model_folder = (
             FOLDER_MODEL_NN / f"{model_name}"
-            if cfg["config_model"] == "nn"
+            if cfg["config_model"]["model_type"] == "nn"
             else FOLDER_MODEL_GP / f"{model_name}"
         )
         if not model_folder.exists():
