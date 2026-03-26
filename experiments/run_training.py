@@ -3,9 +3,8 @@ r"""Script to launch a training pipeline."""
 import argparse
 import wandb
 
-from benthic.diagnostics import diagnostics
 from benthic.training import training
-from dawgz import after, job, schedule
+from dawgz import job, schedule
 
 # fmt: off
 #
@@ -56,17 +55,9 @@ if __name__ == "__main__":
                 config=config,
             )
 
-        @after(train)
-        @job(array= num_models, **config_cluster_evaluate)
-        def diagnose(i: int, model_folder=model_folder):
-            diagnostics(
-                fold_idx=i,
-                model_folder=model_folder,
-            )
-
         # Launching the training jobs
         schedule(
-            *[train, diagnose],
+            train,
             name="BENTHIC-TRAINING",
             backend="slurm",
             export="ALL",
