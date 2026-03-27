@@ -4,12 +4,13 @@ import argparse
 import wandb
 
 from benthic.training import training
-from dawgz import job, schedule
+from dawgz import after, job, schedule
 
 # fmt: off
 #
 # isort: split
 from benthic.config import FOLDER_MODEL_GP, FOLDER_MODEL_NN
+from benthic.diagnostics import diagnostics
 from benthic.training.tools import load_configuration
 
 if __name__ == "__main__":
@@ -55,9 +56,17 @@ if __name__ == "__main__":
                 config=config,
             )
 
+        @after(train)
+        @job(array=num_models, **config_cluster_evaluate)
+        def evaluate(i: int,  model_folder=model_folder):
+            diagnostics(
+                fold_idx=i,
+                model_folder=model_folder,
+            )
+
         # Launching the training jobs
         schedule(
-            train,
+            *[train, evaluate],
             name="BENTHIC-TRAINING",
             backend="slurm",
             export="ALL",
