@@ -10,17 +10,14 @@ from benthic.data.tools import Statistics
 
 # fmt: off
 class FullyConnectedNeuralNetwork(nn.Module):
-    r"""Fully connected neural network with Gaussian output (mean and variance).
-
-    This network predicts both the mean and variance of a Gaussian distribution
-    for each output dimension. The variance is constrained to be positive using
-    the log-exponential trick.
+    r"""Fully connected neural network with Gaussian Mixture Model (GMM) output.
 
     Arguments:
         input_size: Dimension of input features.
         output_size: Dimension of output predictions.
         layers: List of hidden layer sizes (e.g., [64, 64] creates two 64-neuron layers).
         dropout: Dropout probability applied after each hidden layer (default: 0.05).
+        num_components: Number of Gaussian components in the mixture (default: 1).
     """
 
     def __init__(
@@ -29,11 +26,13 @@ class FullyConnectedNeuralNetwork(nn.Module):
         output_size: int,
         layers: list[int],
         dropout: float = 0.05,
+        num_components: int = 1,
     ):
         super().__init__()
 
         self.input_size = input_size
         self.output_size = output_size
+        self.num_components = num_components
 
         # Build hidden layers
         hidden_layers = []
@@ -41,61 +40,145 @@ class FullyConnectedNeuralNetwork(nn.Module):
 
         for hidden_size in layers:
             hidden_layers.append(nn.Linear(prev_size, hidden_size))
-            hidden_layers.append(nn.ReLU())
+            hidden_layers.append(nn.GELU())
             hidden_layers.append(nn.Dropout(dropout))
             prev_size = hidden_size
 
         self.hidden = nn.Sequential(*hidden_layers)
 
-        # Output heads: one for mean, one for log-variance
-        self.mean_head = nn.Linear(prev_size, output_size)
-        self.logvar_head = nn.Linear(prev_size, output_size)
+        # Output heads: one for weights, one for means, one for log-variances
+        self.weights_head = nn.Linear(prev_size, output_size * num_components)
+        self.means_head   = nn.Linear(prev_size, output_size * num_components)
+        self.logvars_head = nn.Linear(prev_size, output_size * num_components)
 
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         r"""Forward pass.
 
         Arguments:
             x: Input tensor of shape (batch_size, input_size).
 
         Returns:
-            mean: Predicted mean of shape (batch_size, output_size).
-            variance: Predicted variance of shape (batch_size, output_size).
+            weights: Mixture weights of shape (batch_size, output_size, num_components).
+            means: Predicted means of shape (batch_size, output_size, num_components).
+            variances: Predicted variances of shape (batch_size, output_size, num_components).
         """
         h = self.hidden(x)
+        batch_size = x.shape[0]
 
-        # Predict mean directly
-        mean = self.mean_head(h)
+        # Predict GMM parameters (flat outputs)
+        means          = self.means_head(h)    # (batch, output_size * K)
+        logvars        = self.logvars_head(h)  # (batch, output_size * K)
+        weights_logits = self.weights_head(h)  # (batch, output_size * K)
 
-        # Predict log-variance and convert to variance (log-exp trick ensures positivity)
-        log_variance = self.logvar_head(h)
-        variance = torch.exp(log_variance)
+        # Reshape to (batch, output_size, K)
+        means          = means.view(batch_size, self.output_size, self.num_components)
+        logvars        = logvars.view(batch_size, self.output_size, self.num_components)
+        weights_logits = weights_logits.view(batch_size, self.output_size, self.num_components)
 
-        return mean, variance
+        # Apply constraints
+        weights   = torch.nn.functional.softmax(weights_logits, dim=-1)
+        variances = torch.exp(logvars)
+
+        return weights, means, variances
+
+    def inference(self, x: torch.Tensor, num_samples: int = 100) -> tuple[torch.Tensor, torch.Tensor]:
+        r"""Sample from the Gaussian mixture and compute empirical statistics.
+
+        This method draws num_samples from the predicted mixture distribution
+        and returns the empirical mean and variance of these samples.
+
+        Arguments:
+            x: Input tensor of shape (batch_size, input_size).
+            num_samples: Number of Monte Carlo samples to draw (default: 100).
+
+        Returns:
+            empirical_mean: Mean of samples of shape (batch_size, output_size).
+            empirical_var: Variance of samples of shape (batch_size, output_size).
+        """
+        weights, means, variances = self.forward(x)  # (batch, output_size, K)
+        batch_size = x.shape[0]
+
+        # Storage for samples: (num_samples, batch, output_size)
+        samples = torch.zeros(
+            num_samples, batch_size, self.output_size,
+            device=x.device, dtype=x.dtype
+        )
+
+        # Sample num_samples times from the mixture
+        for s in range(num_samples):
+            # Sample component indices from categorical distribution
+            component_dist = torch.distributions.Categorical(weights)
+            component_indices = component_dist.sample()  # (batch, output_size)
+
+            # Gather parameters for selected components
+            selected_means = torch.gather(means, dim=2, index=component_indices.unsqueeze(-1)).squeeze(-1)  # (batch, output_size)
+
+            selected_vars = torch.gather(
+                variances, dim=2,
+                index=component_indices.unsqueeze(-1)
+            ).squeeze(-1)  # (batch, output_size)
+
+            # Sample from N(selected_means, selected_vars)
+            epsilon = torch.randn_like(selected_means)
+            samples[s] = selected_means + torch.sqrt(selected_vars) * epsilon
+
+        # Compute empirical statistics
+        empirical_mean = samples.mean(dim=0)  # (batch, output_size)
+        empirical_var = samples.var(dim=0)    # (batch, output_size)
+
+        return empirical_mean, empirical_var
 
 
 def loss(
     y_true: torch.Tensor,
-    y_pred_mean: torch.Tensor,
-    y_pred_variance: torch.Tensor,
+    weights: torch.Tensor,
+    means: torch.Tensor,
+    variances: torch.Tensor,
 ) -> torch.Tensor:
-    r"""Negative log-likelihood loss for Gaussian predictions.
+    r"""Negative log-likelihood loss for Gaussian Mixture Model predictions.
 
     Mathematical Formula:
     ---------------------
 
-        NLL = (1/2) * log(2π * σ²) + (1/2) * [(y - μ)² / σ²]
+        NLL = -log[ Σ_k π_k * N(y | μ_k, σ²_k) ]
+            = -log[ Σ_k exp(log π_k - 0.5*log(σ²_k) - 0.5*(y-μ_k)²/σ²_k) ]
+            = -logsumexp_k[ log π_k - 0.5*log(σ²_k) - 0.5*(y-μ_k)²/σ²_k ]
 
     Arguments:
         y_true: True target values of shape (batch_size, output_size).
-        y_pred_mean: Predicted means of shape (batch_size, output_size).
-        y_pred_variance: Predicted variances of shape (batch_size, output_size).
+        weights: Mixture weights of shape (batch_size, output_size, num_components).
+        means: Predicted means of shape (batch_size, output_size, num_components).
+        variances: Predicted variances of shape (batch_size, output_size, num_components).
 
     Returns:
-        Scalar loss value.
+        Scalar loss value (averaged over batch and dimensions).
     """
-    return (
-        0.5 * (torch.log(y_pred_variance) + (y_true - y_pred_mean) ** 2 / y_pred_variance)
-    ).mean()
+    # Expand y_true for broadcasting: (batch, output_size) -> (batch, output_size, 1)
+    y_true = y_true.unsqueeze(-1)
+
+    # Log of mixture weights (add small epsilon for numerical stability)
+    log_weights = torch.log(weights + 1e-8)
+
+    # Log of variances
+    log_variances = torch.log(variances + 1e-8)
+
+    # Squared difference
+    squared_diff = (y_true - means) ** 2
+
+    # Log-probability of each Gaussian component
+    log_probs = -0.5 * log_variances - 0.5 * squared_diff / variances
+
+    # Log-probability of the mixture: log(Σ π_k * N_k)
+    log_mixture_probs = log_weights + log_probs
+
+    # Use logsumexp for numerical stability
+    log_likelihood = torch.logsumexp(log_mixture_probs, dim=-1)
+
+    # Negative log-likelihood
+    nll = -log_likelihood
+
+    # Return mean over batch and dimensions
+    return nll.mean()
 
 
 def training_nn(
@@ -143,6 +226,7 @@ def training_nn(
         output_size=y_train.shape[1],
         layers=config["config_nn"]["layers"],
         dropout=config["config_nn"]["dropout"],
+        num_components=config["config_nn"].get("num_components", 1),
     )
 
     # Initialize optimizer
@@ -161,10 +245,10 @@ def training_nn(
         model.train()
 
         # Forward pass
-        y_mean_train, y_var_train = model(X_train)
+        weights_train, means_train, vars_train = model(X_train)
 
         # Compute loss
-        train_loss = loss(y_train, y_mean_train, y_var_train)
+        train_loss = loss(y_train, weights_train, means_train, vars_train)
 
         # Backward pass
         optimizer.zero_grad()
@@ -176,8 +260,8 @@ def training_nn(
         # ===================
         model.eval()
         with torch.no_grad():
-            y_mean_val, y_var_val = model(X_val)
-            val_loss = loss(y_val, y_mean_val, y_var_val)
+            weights_val, means_val, vars_val = model(X_val)
+            val_loss = loss(y_val, weights_val, means_val, vars_val)
 
         # Store losses
         train_losses.append(train_loss.item())
@@ -189,7 +273,7 @@ def training_nn(
             torch.save(model.state_dict(), model_folder / f"best_model_{fold_idx}.pth")
 
         # Logging to Weights & Biases
-        if epoch % 500 == 0:
+        if epoch % 1000 == 0:
             wandb.log({
                 "Training & Validation / Epoch": epoch + 1,
                 "Training & Validation / Loss (Training)": train_loss.item(),
@@ -203,9 +287,10 @@ def training_nn(
     model.load_state_dict(torch.load(model_folder / f"best_model_{fold_idx}.pth", weights_only=True))
     model.eval()
 
-    # Predictions on validation set for final evaluation
+    # Predictions on validation set for final evaluation (using inference sampling)
+    num_inference_samples = config["config_nn"].get("num_inference_samples", 1000)
     with torch.no_grad():
-        y_mean_val, y_var_val = model(X_val)
+        y_mean_val, y_var_val = model.inference(X_val, num_samples=num_inference_samples)
 
     # Saving results and validation set (standardized)
     np.save(model_folder / f"{fold_idx}_standardized_y_true.npy",      np.array(y_val))

@@ -9,7 +9,7 @@ Cluster:
     "cpus"      : [1]                  
     "ram"       : ["1GB"]      
     "partition" : ["batch"]
-    "time"      : ["00:02:30"]
+    "time"      : ["00:10:00"]
 
   Evaluate:
     "account"   : ["bsmfc"]
@@ -41,7 +41,9 @@ Training:
     "alpha":                [0.0001]
 
   config_nn:
-    "epochs":        [100]
-    "learning_rate": [0.001]
-    "layers":        [[4, 4]]
-    "dropout":       [0.1]
+    "epochs":                [100]
+    "learning_rate":         [0.00001]
+    "layers":                [[4, 4]]
+    "dropout":               [0.1]
+    "num_components":        [2]   
+    "num_inference_samples": [32]  

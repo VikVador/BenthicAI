@@ -52,6 +52,8 @@ def prepare_wandb_config(config: dict) -> dict:
             "learning_rate": config["config_nn"]["learning_rate"],
             "nb_layers": len(config["config_nn"]["layers"]),
             "dropout": config["config_nn"]["dropout"],
+            "num_components": config["config_nn"]["num_components"],
+            "num_inference_samples": config["config_nn"]["num_inference_samples"],
             **{
                 f"layer_{i + 1}_width": neurons
                 for i, neurons in enumerate(config["config_nn"]["layers"])
