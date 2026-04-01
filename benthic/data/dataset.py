@@ -1,7 +1,9 @@
 r"""Datasets."""
 
 import numpy as np
+import torch
 
+from benthic.config import PATH_DATASET_COORDINATES
 from sklearn.model_selection import KFold
 from typing import List, Optional, Tuple
 
@@ -21,6 +23,9 @@ def get_datasets(
     List[np.ndarray],
     List[np.ndarray],
     List[np.ndarray],
+    List[np.ndarray],
+    List[np.ndarray],
+    List[np.ndarray],
 ]:
     r"""Create nested k-fold splits for double cross-validation.
 
@@ -34,21 +39,28 @@ def get_datasets(
         seed_test: Random seed for test splits. If None, splits are random.
 
     Returns:
-        X_train: List of (r_validation * k_validation) training input folds
-        y_train: List of (r_validation * k_validation) training target folds
-        X_val:   List of (r_validation * k_validation) validation input folds
-        y_val:   List of (r_validation * k_validation) validation target folds
-        X_test:  List of k_test test input folds
-        y_test:  List of k_test test target folds
+        X_train:      List of (r_validation * k_validation) training input folds
+        y_train:      List of (r_validation * k_validation) training target folds
+        X_val:        List of (r_validation * k_validation) validation input folds
+        y_val:        List of (r_validation * k_validation) validation target folds
+        X_test:       List of k_test test input folds
+        y_test:       List of k_test test target folds
+        coords_train: List of (r_validation * k_validation) training coordinate folds, each (n, 3)
+        coords_val:   List of (r_validation * k_validation) validation coordinate folds, each (n, 3)
+        coords_test:  List of k_test test coordinate folds, each (n, 3)
     """
+    # Loading coordinates of stations (STATIONS, 3) with lat, lon, depth
+    coordinates = torch.load(PATH_DATASET_COORDINATES, weights_only=True).numpy()
+
     # Create k_test folds on all data
     kfold_test = KFold(n_splits=k_test, shuffle=True, random_state=seed_test)
 
-    X_test, y_test, test_indices_list = [], [], []
+    X_test, y_test, coords_test, test_indices_list = [], [], [], []
 
     for _, test_idx in kfold_test.split(X):
         X_test.append(X[test_idx])
         y_test.append(y[test_idx])
+        coords_test.append(coordinates[test_idx])
         test_indices_list.append(test_idx)
 
     # Use remaining data (all folds except the first) for train/val
@@ -57,7 +69,7 @@ def get_datasets(
     y_remaining = y[remaining_indices]
 
     # Create r_validation repetitions of k_validation folds
-    X_train, X_val, y_train, y_val = [], [], [], []
+    X_train, X_val, y_train, y_val, coords_train, coords_val = [], [], [], [], [], []
 
     for r in range(r_validation):
         # Use different seed for each repetition if seed_validation is provided
@@ -71,5 +83,7 @@ def get_datasets(
             X_val.append(X_remaining[val_idx])
             y_train.append(y_remaining[train_idx])
             y_val.append(y_remaining[val_idx])
+            coords_train.append(coordinates[remaining_indices[train_idx]])
+            coords_val.append(coordinates[remaining_indices[val_idx]])
 
-    return X_train, y_train, X_val, y_val, X_test, y_test
+    return X_train, y_train, X_val, y_val, X_test, y_test, coords_train, coords_val, coords_test
