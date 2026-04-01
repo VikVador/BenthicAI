@@ -7,11 +7,11 @@ DATASET_INPUT_VARIABLES = [
     "votemper",
     "vosaline",
     "dox",
-    "par",
     "sCSED",
     "botfluxPOC",
     "botstress",
     "fCSED",
+    "par",
 ]
 
 DATASET_OUTPUT_VARIABLES = [
@@ -20,12 +20,12 @@ DATASET_OUTPUT_VARIABLES = [
     "body_mass_0.010_0.100",
     "body_mass_0.100_1.000",
     "body_mass_1.000_10.000",
-    # "body_mass_10.000", Note: Only one value.
+    # "body_mass_10.000",
     "de",
     "dep",
     "endo_bioconstruction_depth_0_5",
     "endo_bioconstruction_depth_15_30",
-    # "endo_bioconstruction_depth_30", (above 15 cm : merge 15_30 with 30)
+    # "endo_bioconstruction_depth_30",
     "endo_bioconstruction_depth_5_15",
     "endo_bioconstruction_depth_none_surficial",
     "endo_bioconstruction_type_blind_ended",
@@ -34,14 +34,14 @@ DATASET_OUTPUT_VARIABLES = [
     "fast",
     "feeding_type_casc",
     "feeding_type_de",
-    # "feeding_type_hegr", (not relevant)
+    # "feeding_type_hegr",
     "feeding_type_su",
     "immobile",
     "ir",
     "life_span_1",
     "life_span_10_20",
     "life_span_1_3",
-    # "life_span_20", (can merge with 10_20)
+    # "life_span_20",
     "life_span_3_10",
     "limited",
     "mi",
@@ -49,7 +49,7 @@ DATASET_OUTPUT_VARIABLES = [
     "mobility_immobile",
     "mobility_limited",
     "mobility_slow",
-    # "mobility_very_fast", merge with fast or delete
+    # "mobility_very_fast",
     "offspring_development_internal",
     "offspring_development_lecithotrophic",
     "offspring_development_mixed_lecithotrophic",
@@ -59,9 +59,9 @@ DATASET_OUTPUT_VARIABLES = [
     "posegrp2",
     "posegrp3",
     "sediment_mixing_type_diffusion",
-    # "sediment_mixing_type_downward_conveying", can be merged with upward_conveying
+    # "sediment_mixing_type_downward_conveying"
     "sediment_mixing_type_none",
-    # "sediment_mixing_type_regeneration", delete
+    # "sediment_mixing_type_regeneration"
     "sediment_mixing_type_upward_conveying",
     "sexuality_gonochorism",
     # "sexuality_homogamy",
