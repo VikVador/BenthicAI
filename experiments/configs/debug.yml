@@ -30,7 +30,12 @@ Training:
     "k_validation":    [2]
     "k_test":          [4]
     "seed_validation": [1]
-    "seed_test":       [1] 
+    "seed_test":       [1]
+    "stats":           [["mean", "std", "min", "max"]]
+    "period":          ["annual"] # Choose one of "annual", "seasonal", or "monthly"
+    "q_min":           [2]
+    "q_max":           [98]
+    "zero_safe":       [true]
 
   config_model:
     "model_type": ["gp", "nn"] # Choose one of "gp" or "nn"
