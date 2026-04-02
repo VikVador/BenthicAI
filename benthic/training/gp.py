@@ -43,6 +43,7 @@ def training_gp(
     y_train: np.ndarray,
     X_val: np.ndarray,
     y_val: np.ndarray,
+    coords_val: np.ndarray,
     model_folder: str,
     fold_idx: int,
     config: dict,
@@ -54,6 +55,7 @@ def training_gp(
         y_train: Output data for training.
         X_val: Input data for validation.
         y_val: Output data for validation.
+        coords_val: Coordinates (lat, lon, depth) of the validation stations, shape (n_val, 3).
         model_folder: Path to the folder where the model will be saved.
         fold_idx: Index of the fold for k-fold cross-validation (inner loop).
         config: Training configuration dictionary.
@@ -102,3 +104,4 @@ def training_gp(
     np.save(model_folder / f"{fold_idx}_y_true.npy",      y_val)
     np.save(model_folder / f"{fold_idx}_y_pred_mean.npy", y_mean_val)
     np.save(model_folder / f"{fold_idx}_y_pred_var.npy",  y_std_val ** 2)
+    np.save(model_folder / f"{fold_idx}_coords.npy",      coords_val)

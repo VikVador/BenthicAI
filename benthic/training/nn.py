@@ -186,6 +186,7 @@ def training_nn(
     y_train: np.ndarray,
     X_val: np.ndarray,
     y_val: np.ndarray,
+    coords_val: np.ndarray,
     model_folder: str,
     fold_idx: int,
     config: dict,
@@ -197,6 +198,7 @@ def training_nn(
         y_train: Output data for training.
         X_val: Input data for validation.
         y_val: Output data for validation.
+        coords_val: Coordinates (lat, lon, depth) of the validation stations, shape (n_val, 3).
         model_folder: Path to the folder where the model will be saved.
         fold_idx: Index of the fold for k-fold cross-validation (inner loop).
         config: Training configuration dictionary.
@@ -308,3 +310,4 @@ def training_nn(
     np.save(model_folder / f"{fold_idx}_y_true.npy",      np.array(y_val))
     np.save(model_folder / f"{fold_idx}_y_pred_mean.npy", np.array(y_mean_val))
     np.save(model_folder / f"{fold_idx}_y_pred_var.npy",  np.array(y_var_val))
+    np.save(model_folder / f"{fold_idx}_coords.npy",      coords_val)
