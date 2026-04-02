@@ -134,7 +134,7 @@ def loss(
     weights: torch.Tensor,
     means: torch.Tensor,
     variances: torch.Tensor,
-) -> torch.Tensor:
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     r"""Negative log-likelihood loss for Gaussian Mixture Model predictions.
 
     Mathematical Formula:
@@ -145,40 +145,36 @@ def loss(
             = -logsumexp_k[ log π_k - 0.5*log(σ²_k) - 0.5*(y-μ_k)²/σ²_k ]
 
     Arguments:
-        y_true: True target values of shape (batch_size, output_size).
-        weights: Mixture weights of shape (batch_size, output_size, num_components).
-        means: Predicted means of shape (batch_size, output_size, num_components).
+        y_true:    True target values of shape (batch_size, output_size).
+        weights:   Mixture weights of shape (batch_size, output_size, num_components).
+        means:     Predicted means of shape (batch_size, output_size, num_components).
         variances: Predicted variances of shape (batch_size, output_size, num_components).
 
     Returns:
-        Scalar loss value (averaged over batch and dimensions).
+        nll:      Scalar NLL averaged over batch and output dimensions.
+        mse_mean: MSE between the GMM predicted mean and y_true (for comparison with GP).
+        mean_var: Mean predicted aleatoric variance Σ_k π_k σ²_k (calibration indicator).
     """
     # Expand y_true for broadcasting: (batch, output_size) -> (batch, output_size, 1)
-    y_true = y_true.unsqueeze(-1)
+    y_true_exp = y_true.unsqueeze(-1)
 
-    # Log of mixture weights (add small epsilon for numerical stability)
-    log_weights = torch.log(weights + 1e-8)
-
-    # Log of variances
+    log_weights   = torch.log(weights + 1e-8)
     log_variances = torch.log(variances + 1e-8)
+    squared_diff  = (y_true_exp - means) ** 2
 
-    # Squared difference
-    squared_diff = (y_true - means) ** 2
-
-    # Log-probability of each Gaussian component
-    log_probs = -0.5 * log_variances - 0.5 * squared_diff / variances
-
-    # Log-probability of the mixture: log(Σ π_k * N_k)
+    log_probs        = -0.5 * log_variances - 0.5 * squared_diff / variances
     log_mixture_probs = log_weights + log_probs
+    log_likelihood   = torch.logsumexp(log_mixture_probs, dim=-1)
+    nll              = -log_likelihood.mean()
 
-    # Use logsumexp for numerical stability
-    log_likelihood = torch.logsumexp(log_mixture_probs, dim=-1)
+    # MSE on the GMM mean: E[μ] = Σ_k π_k μ_k
+    gmm_mean = (weights * means).sum(dim=-1)           # (batch, output_size)
+    mse_mean = ((y_true - gmm_mean) ** 2).mean()
 
-    # Negative log-likelihood
-    nll = -log_likelihood
+    # Mean aleatoric variance: E[σ²] = Σ_k π_k σ²_k
+    mean_var = (weights * variances).sum(dim=-1).mean()
 
-    # Return mean over batch and dimensions
-    return nll.mean()
+    return nll, mse_mean, mean_var
 
 
 def training_nn(
@@ -248,42 +244,37 @@ def training_nn(
 
         # Forward pass
         weights_train, means_train, vars_train = model(X_train)
-
-        # Compute loss
-        train_loss = loss(y_train, weights_train, means_train, vars_train)
+        train_nll, train_mse, train_var = loss(y_train, weights_train, means_train, vars_train)
 
         # Backward pass
         optimizer.zero_grad()
-        train_loss.backward()
+        train_nll.backward()
         optimizer.step()
 
-        # ===================
-        #      VALIDATION
-        # ===================
         model.eval()
         with torch.no_grad():
             weights_val, means_val, vars_val = model(X_val)
-            val_loss = loss(y_val, weights_val, means_val, vars_val)
+            val_nll, val_mse, val_var = loss(y_val, weights_val, means_val, vars_val)
 
-        # Store losses
-        train_losses.append(train_loss.item())
-        val_losses.append(val_loss.item())
+        train_losses.append(train_nll.item())
+        val_losses.append(val_nll.item())
 
-        # Check for improvement and save model if it's the best so far
-        if val_loss.item() < best_val_loss:
-            best_val_loss = val_loss.item()
+        if val_nll.item() < best_val_loss:
+            best_val_loss = val_nll.item()
             torch.save(model.state_dict(), model_folder / f"best_model_{fold_idx}.pth")
 
-        # Logging to Weights & Biases
         if epoch % 1000 == 0:
             wandb.log({
-                "Training & Validation / Epoch": epoch + 1,
-                "Training & Validation / Loss (Training)": train_loss.item(),
-                "Training & Validation / Loss (Validation)": val_loss.item(),
+                "Training & Validation / Epoch":              epoch + 1,
+                "Training & Validation / NLL (Training)":     train_nll.item(),
+                "Training & Validation / NLL (Validation)":   val_nll.item(),
+                "Training & Validation / MSE (Training)":     train_mse.item(),
+                "Training & Validation / MSE (Validation)":   val_mse.item(),
+                "Training & Validation / Var (Training)":     train_var.item(),
+                "Training & Validation / Var (Validation)":   val_var.item(),
             })
 
-    # Logging the best validation loss for the fold
-    wandb.log({"Training & Validation / Final Validation Loss (NN)": best_val_loss})
+    wandb.log({"Training & Validation / Best Validation NLL (NN)": best_val_loss})
 
     # Loading the best model for final evaluation
     model.load_state_dict(torch.load(model_folder / f"best_model_{fold_idx}.pth", weights_only=True))

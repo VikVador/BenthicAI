@@ -1,0 +1,54 @@
+# ====================================
+#         B E N T H I C   A I
+# ====================================
+#
+# Goal: Assess the impact of input features (temporal statistics and period)
+#       on model performance, with the best architecture fixed from nn-1/nn-2.
+#       No outlier clipping (q_min=0, q_max=100) to ensure a fair comparison
+#       across feature configurations.
+#
+Cluster:
+
+  Train:
+    "account"   : ["bsmfc"]
+    "cpus"      : [1]
+    "ram"       : ["1GB"]
+    "partition" : ["batch"]
+    "time"      : ["00:30:00"]
+
+  Evaluate:
+    "account"   : ["bsmfc"]
+    "cpus"      : [1]
+    "ram"       : ["1GB"]
+    "partition" : ["batch"]
+    "time"      : ["00:05:00"]
+
+Training:
+
+  config_wandb:
+    "team":    ["benthicAI"]
+    "project": ["BenthicAI - Feature Exploration"]
+    "mode":    ["online"]
+
+  config_dataset:
+    "r_validation":    [3]
+    "k_validation":    [10]
+    "k_test":          [5]
+    "seed_validation": [1]
+    "seed_test":       [1]
+    "stats":           [["mean"], ["mean", "std"], ["mean", "std", "min", "max"]]
+    "period":          ["annual", "seasonal", "monthly"]
+    "q_min":           [0]
+    "q_max":           [100]
+    "zero_safe":       [true]
+
+  config_model:
+    "model_type": ["nn"]
+
+  config_nn:
+    "epochs":                [50000]
+    "learning_rate":         [0.0001, 0.00001]
+    "layers":                [[128, 128]]   # update from nn-1/nn-2 analysis
+    "dropout":               [0.1]          # update from nn-1/nn-2 analysis
+    "num_components":        [5]            # update from nn-2 analysis
+    "num_inference_samples": [128]

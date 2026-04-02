@@ -1,0 +1,53 @@
+# ====================================
+#         B E N T H I C   A I
+# ====================================
+#
+# Goal: Assess the benefit of a MDN (num_components > 1) over a single Gaussian.
+#       Architecture is kept fixed to the two most promising candidates from nn-1.
+#       Update "layers" and "dropout" once nn-1 results are analysed on W&B.
+#
+Cluster:
+
+  Train:
+    "account"   : ["bsmfc"]
+    "cpus"      : [1]
+    "ram"       : ["1GB"]
+    "partition" : ["batch"]
+    "time"      : ["00:10:00"]
+
+  Evaluate:
+    "account"   : ["bsmfc"]
+    "cpus"      : [1]
+    "ram"       : ["1GB"]
+    "partition" : ["batch"]
+    "time"      : ["00:05:00"]
+
+Training:
+
+  config_wandb:
+    "team":    ["benthicAI"]
+    "project": ["BenthicAI - Architecture Search (2) - Mixture Density"]
+    "mode":    ["online"]
+
+  config_dataset:
+    "r_validation":    [3]
+    "k_validation":    [10]
+    "k_test":          [5]
+    "seed_validation": [1]
+    "seed_test":       [1]
+    "stats":           [["mean", "std", "min", "max"]]
+    "period":          ["annual"]
+    "q_min":           [0]
+    "q_max":           [100]
+    "zero_safe":       [true]
+
+  config_model:
+    "model_type": ["nn"]
+
+  config_nn:
+    "epochs":                [50000]
+    "learning_rate":         [0.0001, 0.00001]
+    "layers":                [[64, 64], [128, 128]]   # update from nn-1 analysis
+    "dropout":               [0.1]                    # update from nn-1 analysis
+    "num_components":        [1, 3, 5, 10]
+    "num_inference_samples": [128]

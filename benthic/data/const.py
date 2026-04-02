@@ -91,7 +91,7 @@ DATASET_OUTPUT_VARIABLES = [
     "substratum_depth_occupancy_0",
     "substratum_depth_occupancy_0_5",
     "substratum_depth_occupancy_15_30",
-    # "substratum_depth_occupancy_30", can be merge with 15_30
+    # "substratum_depth_occupancy_30",
     "substratum_depth_occupancy_5_15",
     # "t17.m6",
     "ventilation_pumping_high",

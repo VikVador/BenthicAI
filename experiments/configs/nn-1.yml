@@ -1,0 +1,53 @@
+# ====================================
+#         B E N T H I C   A I
+# ====================================
+#
+# Goal: Architecture search with a single Gaussian output (num_components=1).
+#       Used to find the best depth/width/dropout before exploring MDN heads.
+#       Results are directly comparable to the Gaussian Process baseline.
+#
+Cluster:
+
+  Train:
+    "account"   : ["bsmfc"]
+    "cpus"      : [1]
+    "ram"       : ["1GB"]
+    "partition" : ["batch"]
+    "time"      : ["00:10:00"]
+
+  Evaluate:
+    "account"   : ["bsmfc"]
+    "cpus"      : [1]
+    "ram"       : ["1GB"]
+    "partition" : ["batch"]
+    "time"      : ["00:05:00"]
+
+Training:
+
+  config_wandb:
+    "team":    ["benthicAI"]
+    "project": ["BenthicAI - Architecture Search (1) - Gaussian"]
+    "mode":    ["online"]
+
+  config_dataset:
+    "r_validation":    [3]
+    "k_validation":    [10]
+    "k_test":          [5]
+    "seed_validation": [1]
+    "seed_test":       [1]
+    "stats":           [["mean", "std", "min", "max"]]
+    "period":          ["annual"]
+    "q_min":           [0]
+    "q_max":           [100]
+    "zero_safe":       [true]
+
+  config_model:
+    "model_type": ["nn"]
+
+  config_nn:
+    "epochs":                [50000]
+    "learning_rate":         [0.0001, 0.00001]
+    "layers":                [[64], [128], [64, 64], [128, 128], [64, 64, 64]]
+    "dropout":               [0.0, 0.1, 0.2]
+    "num_components":        [1]
+    "num_inference_samples": [128]

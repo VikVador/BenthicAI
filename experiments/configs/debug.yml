@@ -33,8 +33,8 @@ Training:
     "seed_test":       [1]
     "stats":           [["mean", "std", "min", "max"]]
     "period":          ["annual"] # Choose one of "annual", "seasonal", or "monthly"
-    "q_min":           [2]
-    "q_max":           [98]
+    "q_min":           [0]
+    "q_max":           [100]
     "zero_safe":       [true]
 
   config_model:
