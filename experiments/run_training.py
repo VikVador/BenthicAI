@@ -22,6 +22,12 @@ if __name__ == "__main__":
         required=True,
         help="Path to the training .yml configuration file.",
     )
+    parser.add_argument(
+        "--evaluate",
+        "-e",
+        action="store_true",
+        help="Also schedule evaluation jobs after training.",
+    )
 
     args = parser.parse_args()
     configs = load_configuration(args.config)
@@ -56,18 +62,15 @@ if __name__ == "__main__":
                 config=config,
             )
 
-        @after(train)
-        @job(array=num_models, **config_cluster_evaluate)
-        def evaluate(i: int,  model_folder=model_folder):
-            diagnostics(
-                fold_idx=i,
-                model_folder=model_folder,
-            )
+        if args.evaluate:
+            @after(train)
+            @job(array=num_models, **config_cluster_evaluate)
+            def evaluate(i: int, model_folder=model_folder):
+                diagnostics(
+                    fold_idx=i,
+                    model_folder=model_folder,
+                )
 
-        # Launching the training jobs
-        schedule(
-            *[train, evaluate],
-            name="BENTHIC-TRAINING",
-            backend="slurm",
-            export="ALL",
-        )
+            schedule(train, evaluate, name="BENTHIC-TRAINING", backend="slurm", export="ALL")
+        else:
+            schedule(train, name="BENTHIC-TRAINING", backend="slurm", export="ALL")
