@@ -3,6 +3,7 @@ r"""Tools for data manipulation."""
 import numpy as np
 import xarray as xr
 
+from benthic.data.const import MONTHLY_INDICES, SEASONAL_INDICES
 from typing import List
 
 
@@ -34,46 +35,71 @@ class Statistics:
         return X * self.std + self.mean
 
 
-def extract_temporal_statistics(ds: xr.DataArray, stats: List[str] | None = None) -> np.ndarray:
+def extract_temporal_statistics(
+    ds: xr.DataArray,
+    stats: List[str] | None = None,
+    period: str = "annual",
+) -> np.ndarray:
     r"""Extract temporal statistics from a time-dependent DataArray.
 
     Arguments:
-        ds: DataArray with shape (station, time) containing temporal data.
-        stats: List of statistics to compute (supported values ["mean", "std", "min", "max"]).
+        ds:     DataArray with shape (station, time) containing temporal data.
+        stats:  List of statistics to compute. Supported: ["mean", "std", "min", "max"].
+        period: Temporal granularity for statistics computation. One of "annual", "monthly", or "seasonal".
     """
     if stats is None:
         stats = ["mean", "std", "min", "max"]
 
-    # Extract numpy values (station, time)
     values = ds.values
 
-    # Compute each statistic along the temporal axis (axis=1)
-    stat_arrays = []
-    for stat in stats:
-        if stat == "mean":
-            stat_arrays.append(np.nanmean(values, axis=1, keepdims=True))
-        elif stat == "std":
-            stat_arrays.append(np.nanstd(values, axis=1, keepdims=True))
-        elif stat == "min":
-            stat_arrays.append(np.nanmin(values, axis=1, keepdims=True))
-        elif stat == "max":
-            stat_arrays.append(np.nanmax(values, axis=1, keepdims=True))
-        else:
-            raise ValueError(f"Unsupported statistic: {stat}")
+    if period == "annual":
+        periods_dict = {"annual": list(range(values.shape[1]))}
+    elif period == "monthly":
+        periods_dict = MONTHLY_INDICES
+    elif period == "seasonal":
+        periods_dict = SEASONAL_INDICES
+    else:
+        raise ValueError(
+            f"Unsupported period: {period!r}. Choose from 'annual', 'monthly', 'seasonal'."
+        )
 
-    # Concatenate all statistics horizontally: (station, n_stats)
-    return np.concatenate(stat_arrays, axis=1)
+    period_blocks = []
+    for t_indices in periods_dict.values():
+        subset = values[:, t_indices]
+        stat_arrays = []
+        for stat in stats:
+            if stat == "mean":
+                stat_arrays.append(np.nanmean(subset, axis=1, keepdims=True))
+            elif stat == "std":
+                stat_arrays.append(np.nanstd(subset, axis=1, keepdims=True))
+            elif stat == "min":
+                stat_arrays.append(np.nanmin(subset, axis=1, keepdims=True))
+            elif stat == "max":
+                stat_arrays.append(np.nanmax(subset, axis=1, keepdims=True))
+            else:
+                raise ValueError(
+                    f"Unsupported statistic: {stat!r}. Choose from 'mean', 'std', 'min', 'max'."
+                )
+        period_blocks.append(np.concatenate(stat_arrays, axis=1))
+
+    # (station, n_periods * n_stats)
+    return np.concatenate(period_blocks, axis=1)
 
 
 def from_zarr_to_numpy(
-    ds: xr.Dataset, variables: List[str], stats: List[str] | None = None
+    ds: xr.Dataset,
+    variables: List[str],
+    stats: List[str] | None = None,
+    period: str = "annual",
 ) -> np.ndarray:
     r"""Transform an xarray Dataset into a numpy feature matrix.
 
     Arguments:
-        ds: xarray Dataset containing the variables to transform.
+        ds:        xarray Dataset containing the variables to transform.
         variables: List of variable names to extract from the dataset.
-        stats: List of statistics to compute for time-dependent variables.
+        stats:     List of statistics to compute for time-dependent variables.
+        period:    Temporal granularity for statistics computation. One of "annual",
+                   "monthly" (12 blocks), or "seasonal" (4 blocks).
     """
     if stats is None:
         stats = ["mean", "std", "min", "max"]
@@ -87,7 +113,7 @@ def from_zarr_to_numpy(
 
         # Check if the variable has a temporal dimension
         if "time" in da.dims:
-            stats_array = extract_temporal_statistics(da, stats)
+            stats_array = extract_temporal_statistics(da, stats, period)
             features_list.append(stats_array)
         else:
             static_array = da.values.reshape(-1, 1)
@@ -95,3 +121,32 @@ def from_zarr_to_numpy(
 
     # Concatenate all features horizontally
     return np.concatenate(features_list, axis=1)
+
+
+def filter_outliers(
+    X: np.ndarray,
+    q_min: float = 0.0,
+    q_max: float = 100.0,
+    zero_safe: bool = True,
+) -> np.ndarray:
+    r"""Clip per-column outliers at given percentile bounds.
+
+    Arguments:
+        X:         Feature matrix of shape (n_samples, n_features).
+        q_min:     Lower percentile for clipping (0 = no lower clipping).
+        q_max:     Upper percentile for clipping (100 = no upper clipping).
+        zero_safe: If True, the lower bound is floored at 0 so that physically meaningful zeros on R+ variables are never removed.
+    """
+    if q_min == 0.0 and q_max == 100.0:
+        return X
+
+    X_out = X.copy()
+    for j in range(X.shape[1]):
+        col = X_out[:, j]
+        lower = float(np.nanpercentile(col, q_min)) if q_min > 0 else -np.inf
+        upper = float(np.nanpercentile(col, q_max)) if q_max < 100 else np.inf
+        if zero_safe and lower > 0:
+            lower = 0.0
+        X_out[:, j] = np.clip(col, lower, upper)
+
+    return X_out

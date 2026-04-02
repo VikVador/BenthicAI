@@ -1,5 +1,26 @@
 r"""Information about our dataset"""
 
+MONTHLY_INDICES = {
+    "Jan": list(range(0, 31)),
+    "Feb": list(range(31, 59)),
+    "Mar": list(range(59, 90)),
+    "Apr": list(range(90, 120)),
+    "May": list(range(120, 151)),
+    "Jun": list(range(151, 181)),
+    "Jul": list(range(181, 212)),
+    "Aug": list(range(212, 243)),
+    "Sep": list(range(243, 273)),
+    "Oct": list(range(273, 304)),
+    "Nov": list(range(304, 334)),
+    "Dec": list(range(334, 365)),
+}
+SEASONAL_INDICES = {
+    "Winter": list(range(0, 59)) + list(range(334, 365)),
+    "Spring": list(range(59, 152)),
+    "Summer": list(range(152, 244)),
+    "Fall": list(range(244, 334)),
+}
+
 DATASET_INPUT_VARIABLES = [
     "bathymetry",
     "gravel",
