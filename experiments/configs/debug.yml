@@ -8,14 +8,14 @@ Cluster:
     "account"   : ["bsmfc"]
     "cpus"      : [1]                  
     "ram"       : ["1GB"]      
-    "partition" : ["batch"]
+    "partition" : ["debug"]
     "time"      : ["00:10:00"]
 
   Evaluate:
     "account"   : ["bsmfc"]
     "cpus"      : [1]                  
     "ram"       : ["1GB"]      
-    "partition" : ["batch"]
+    "partition" : ["debug"]
     "time"      : ["00:05:00"]
 
 Training:
