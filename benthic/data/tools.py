@@ -3,7 +3,14 @@ r"""Tools for data manipulation."""
 import numpy as np
 import xarray as xr
 
-from benthic.data.const import MONTHLY_INDICES, SEASONAL_INDICES
+from benthic.data.const import (
+    DATASET_OUTPUT_VARIABLES,
+    MONTHLY_INDICES,
+    OUTPUT_EFFECT_GROUPS,
+    OUTPUT_INDEPENDENT_VARIABLES,
+    OUTPUT_PROPORTION_GROUPS,
+    SEASONAL_INDICES,
+)
 from typing import List
 
 
@@ -150,3 +157,57 @@ def filter_outliers(
         X_out[:, j] = np.clip(col, lower, upper)
 
     return X_out
+
+def check_output_groups(y: np.ndarray, tol: float = 1e-3) -> np.ndarray:
+    r"""Check that the output trait groups have the expected structure.
+ 
+    Proportion groups must sum to 1, every effect group of a station must sum to the
+    same total, and independent outputs must lie in [0, 1].
+ 
+    Arguments:
+        y:   Output matrix of shape (n_samples, n_outputs), ordered as DATASET_OUTPUT_VARIABLES.
+        tol: Tolerance on the sums (absolute for proportions, relative for effect totals).
+ 
+    Returns:
+        total: Station total log-abundance of the effect groups, shape (n_samples,).
+    """
+    index = {name: i for i, name in enumerate(DATASET_OUTPUT_VARIABLES)}
+ 
+    if np.isnan(y).any():
+        raise ValueError(f"Outputs contain NaN values in {np.isnan(y).any(axis=0).sum()} columns.")
+ 
+    # Proportion groups (Resp_mod, POSE_grp) sum to 1
+    for name, modalities in OUTPUT_PROPORTION_GROUPS.items():
+        sums = y[:, [index[m] for m in modalities]].sum(axis=1)
+        bad = np.abs(sums - 1) > tol
+        if bad.any():
+            raise ValueError(
+                f"Group '{name}' does not sum to 1 at {bad.sum()} stations "
+                f"(range {sums.min():.3f} to {sums.max():.3f})."
+            )
+ 
+    # Effect groups (Effect_mod) all sum to the same station total
+    effect_sums = np.stack(
+        [y[:, [index[m] for m in modalities]].sum(axis=1) for modalities in OUTPUT_EFFECT_GROUPS.values()],
+        axis=1,
+    )
+    total = effect_sums.mean(axis=1)
+    if (total <= 0).any():
+        raise ValueError(f"{(total <= 0).sum()} stations have a null total abundance.")
+ 
+    gap = np.abs(effect_sums - total[:, None]) / total[:, None]
+    for j, name in enumerate(OUTPUT_EFFECT_GROUPS):
+        bad = gap[:, j] > tol
+        if bad.any():
+            raise ValueError(
+                f"Group '{name}' does not sum to the station total at {bad.sum()} stations "
+                f"(max relative gap {gap[:, j].max():.3f})."
+            )
+ 
+    # Independent outputs (ind_ecol) lie in [0, 1]
+    for name in OUTPUT_INDEPENDENT_VARIABLES:
+        values = y[:, index[name]]
+        if values.min() < -tol or values.max() > 1 + tol:
+            raise ValueError(f"'{name}' is outside [0, 1] (range {values.min():.3f} to {values.max():.3f}).")
+ 
+    return total
