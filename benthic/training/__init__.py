@@ -5,8 +5,8 @@ import xarray as xr
 
 from benthic.config import PATH_DATASET_TRAIN_VAL
 from benthic.data.const import DATASET_INPUT_VARIABLES, DATASET_OUTPUT_VARIABLES
-from benthic.data.dataset import get_datasets
-from benthic.data.tools import filter_outliers, from_zarr_to_numpy
+from benthic.data.dataset import get_datasets, input_groups
+from benthic.data.tools import check_output_groups, filter_outliers, from_zarr_to_numpy
 from benthic.training.gp import training_gp
 from benthic.training.nn import training_nn
 from benthic.training.tools import prepare_wandb_config
@@ -51,13 +51,19 @@ def training(fold_idx: int, model_name: str, model_folder: str, config: dict):
         from_zarr_to_numpy(ds, DATASET_OUTPUT_VARIABLES),
     )
 
+    # Checking that trait groups sum to 1 (or to the station total) before any split
+    check_output_groups(y)
+
+    # Grouping stations with identical inputs, before clipping can change any value
+    groups = input_groups(X)
+
     # Filtering outliers on inputs only (outputs are trait values in [0, 1])
     X = filter_outliers(X, q_min=q_min, q_max=q_max, zero_safe=zero_safe)
 
     # Create nested k-fold splits (structural params only)
     _DATASET_KEYS = ("r_validation", "k_validation", "k_test", "seed_validation", "seed_test")
     dataset_kwargs = {k: cfg_ds[k] for k in _DATASET_KEYS}
-    X_train, y_train, X_val, y_val, _, _, _, coords_val, _ = get_datasets(X, y, **dataset_kwargs)
+    X_train, y_train, X_val, y_val, _, _, _, coords_val, _ = get_datasets(X, y, groups=groups, **dataset_kwargs)
 
     # Extracting the current fold for training and validation
     X_train, y_train, X_val, y_val, coords_val = (
