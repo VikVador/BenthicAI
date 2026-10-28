@@ -1,6 +1,7 @@
 r"""Tools for data manipulation."""
 
 import numpy as np
+import warnings
 import xarray as xr
 
 from benthic.data.const import (
@@ -128,6 +129,81 @@ def from_zarr_to_numpy(
 
     # Concatenate all features horizontally
     return np.concatenate(features_list, axis=1)
+
+
+def input_feature_names(
+    ds: xr.Dataset,
+    variables: List[str],
+    stats: List[str] | None = None,
+    period: str = "annual",
+) -> List[str]:
+    r"""Names of the columns built by from_zarr_to_numpy, in the same order.
+
+    Static variables keep their name. Time-dependent ones become "<var>_<stat>" for
+    period "annual" and "<var>_<block>_<stat>" otherwise (e.g. "dox_Winter_min").
+    """
+    if stats is None:
+        stats = ["mean", "std", "min", "max"]
+
+    blocks = {"annual": [None], "monthly": list(MONTHLY_INDICES), "seasonal": list(SEASONAL_INDICES)}[period]
+
+    names = []
+    for var_name in variables:
+        if "time" in ds[var_name].dims:
+            names += [
+                f"{var_name}_{stat}" if block is None else f"{var_name}_{block}_{stat}"
+                for block in blocks
+                for stat in stats
+            ]
+        else:
+            names.append(var_name)
+    return names
+
+
+def select_features(X: np.ndarray, names: List[str], features: List[str]) -> np.ndarray:
+    r"""Keep only the given features (columns) of X, in the order of features.
+
+    Arguments:
+        X:        Feature matrix of shape (n_samples, n_features).
+        names:    Name of every column of X (see input_feature_names).
+        features: Names of the columns to keep.
+    """
+    missing = [f for f in features if f not in names]
+    if missing:
+        raise ValueError(f"Unknown features {missing}. Available: {names}")
+    return X[:, [names.index(f) for f in features]]
+
+
+def warn_correlated_features(X: np.ndarray, names: List[str], threshold: float = 0.9) -> list:
+    r"""Warn (without stopping) about feature pairs with |r| >= threshold.
+
+    Correlation is computed on one row per distinct input vector, so stations sharing a
+    grid cell don't count twice.
+
+    Returns:
+        List of (feature_a, feature_b, r) above the threshold.
+    """
+    X_unique = np.unique(X, axis=0)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        corr = np.corrcoef(X_unique, rowvar=False)
+
+    pairs = [
+        (names[i], names[j], float(corr[i, j]))
+        for i in range(len(names))
+        for j in range(i + 1, len(names))
+        if abs(corr[i, j]) >= threshold
+    ]
+    constant = [names[i] for i in range(len(names)) if np.isnan(corr[i, i])]
+
+    if pairs:
+        warnings.warn(
+            f"{len(pairs)} feature pairs with |r| >= {threshold}: "
+            + ", ".join(f"{a}/{b} ({r:+.2f})" for a, b, r in pairs),
+            stacklevel=2,
+        )
+    if constant:
+        warnings.warn(f"Constant features (no information): {constant}", stacklevel=2)
+    return pairs
 
 
 def filter_outliers(

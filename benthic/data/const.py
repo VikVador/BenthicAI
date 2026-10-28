@@ -15,10 +15,10 @@ MONTHLY_INDICES = {
     "Dec": list(range(334, 365)),
 }
 SEASONAL_INDICES = {
-    "Winter": list(range(0, 90)),
-    "Spring": list(range(90, 181)),
-    "Summer": list(range(181, 273)),
-    "Fall": list(range(273, 365)),
+    "Winter": MONTHLY_INDICES["Jan"] + MONTHLY_INDICES["Feb"] + MONTHLY_INDICES["Mar"],
+    "Spring": MONTHLY_INDICES["Apr"] + MONTHLY_INDICES["May"] + MONTHLY_INDICES["Jun"],
+    "Summer": MONTHLY_INDICES["Jul"] + MONTHLY_INDICES["Aug"] + MONTHLY_INDICES["Sep"],
+    "Fall":   MONTHLY_INDICES["Oct"] + MONTHLY_INDICES["Nov"] + MONTHLY_INDICES["Dec"],
 }
 
 DATASET_INPUT_VARIABLES = [
@@ -35,6 +35,23 @@ DATASET_INPUT_VARIABLES = [
     "par",
 ]
 
+# Input features used by the models (names as built by input_feature_names, period "annual").
+# Chosen from the redundancy analysis: one feature per correlated cluster, means preferred
+# (less sensitive to the window length than min/max). Salinity stands for bathymetry and
+# POC flux for bottom stress, which are too correlated to be separated (|r| >= 0.94).
+DATASET_INPUT_FEATURES = [
+    "gravel",
+    "mud_sand_ratio",
+    "vosaline_mean",
+    "votemper_mean",
+    "votemper_min",
+    "dox_mean",
+    "dox_min",
+    "dox_std",
+    "sCSED_mean",
+    "botfluxPOC_mean",
+    "par_mean",
+]
 
 OUTPUT_PROPORTION_GROUPS = {
     "body_mass": [

@@ -4,9 +4,20 @@ import wandb
 import xarray as xr
 
 from benthic.config import PATH_DATASET_TRAIN_VAL
-from benthic.data.const import DATASET_INPUT_VARIABLES, DATASET_OUTPUT_VARIABLES
+from benthic.data.const import (
+    DATASET_INPUT_FEATURES,
+    DATASET_INPUT_VARIABLES,
+    DATASET_OUTPUT_VARIABLES,
+)
 from benthic.data.dataset import get_datasets, input_groups
-from benthic.data.tools import check_output_groups, filter_outliers, from_zarr_to_numpy
+from benthic.data.tools import (
+    check_output_groups,
+    filter_outliers,
+    from_zarr_to_numpy,
+    input_feature_names,
+    select_features,
+    warn_correlated_features,
+)
 from benthic.training.gp import training_gp
 from benthic.training.nn import training_nn
 from benthic.training.tools import prepare_wandb_config
@@ -44,6 +55,7 @@ def training(fold_idx: int, model_name: str, model_folder: str, config: dict):
     q_min = cfg_ds.get("q_min", 0.0)
     q_max = cfg_ds.get("q_max", 100.0)
     zero_safe = cfg_ds.get("zero_safe", True)
+    features = cfg_ds.get("features", DATASET_INPUT_FEATURES)
 
     # Extracting the input and output variables
     X, y = (
@@ -51,13 +63,19 @@ def training(fold_idx: int, model_name: str, model_folder: str, config: dict):
         from_zarr_to_numpy(ds, DATASET_OUTPUT_VARIABLES),
     )
 
+    # Keeping only the selected input features ("all" keeps every column)
+    if features != "all":
+        names = input_feature_names(ds, DATASET_INPUT_VARIABLES, stats=stats, period=period)
+        X = select_features(X, names, features)
+        warn_correlated_features(X, features)
+
     # Checking that trait groups sum to 1 (or to the station total) before any split
     check_output_groups(y)
 
     # Grouping stations with identical inputs, before clipping can change any value
     groups = input_groups(X)
 
-    # Filtering outliers on inputs only (outputs are trait values in [0, 1])
+    # Filtering outliers on inputs only (outputs are proportions, abundances or [0, 1] indices)
     X = filter_outliers(X, q_min=q_min, q_max=q_max, zero_safe=zero_safe)
 
     # Create nested k-fold splits (structural params only)
